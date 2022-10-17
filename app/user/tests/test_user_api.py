@@ -23,9 +23,9 @@ class PublicUserApiTest(TestCase):
     """Test the public features of the user API."""
 
     def setUp(self):
-        self.Client = APIClient()
+        self.client = APIClient()
 
-    def test_create_user_succes(self):
+    def test_create_user_success(self):
         """Test creating a user is succesful."""
         payload = {
             'email': 'test@example.com',
@@ -66,13 +66,12 @@ class PublicUserApiTest(TestCase):
             ).exists()
         self.assertFalse(user_exists)
 
-    def test_create_token_for_the_user(self):
+    def test_create_token_for_user(self):
         """Test generates token for valid credentials."""
         user_details = {
             'name': 'Test Name',
             'email': 'test@example.com',
             'password': 'test-user-password123',
-
         }
         create_user(**user_details)
 
@@ -90,7 +89,15 @@ class PublicUserApiTest(TestCase):
         create_user(email='test@example.com', password='goodpass')
 
         payload = {'email': 'test@example.com', 'password': 'badpass'}
-        res = self.clientpost(TOKEN_URL, payload)
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertNotIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_token_email_not_found(self):
+        """Test error returned if user not found for given email."""
+        payload = {'email': 'test@example.com', 'password': 'pass123'}
+        res = self.client.post(TOKEN_URL, payload)
 
         self.assertNotIn('token', res.data)
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
