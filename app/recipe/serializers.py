@@ -11,7 +11,7 @@ from core.models import (
 
 
 class TagSerializer(serializers.ModelSerializer):
-    """Serializer fro tags"""
+    """Serializer for tags."""
 
     class Meta:
         model = Tag
