@@ -21,6 +21,7 @@ from recipe.serializers import (
     RecipeDetailSerializer,
     )
 
+
 RECIPES_URL = reverse('recipe:recipe-list')
 
 
@@ -123,11 +124,11 @@ class PrivateRecipeApiTests(TestCase):
 
     def test_partial_update(self):
         """Test partial update of a recipe."""
-        orginal_link = 'http://example.com/recipe.pdf'
+        original_link = 'https://example.com/recipe.pdf'
         recipe = create_recipe(
             user=self.user,
             title='Sample recipe title',
-            link=orginal_link,
+            link=original_link,
         )
 
         payload = {'title': 'new recipe title'}
@@ -137,16 +138,16 @@ class PrivateRecipeApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         recipe.refresh_from_db()
         self.assertEqual(recipe.title, payload['title'])
-        self.assertEqual(recipe.link, orginal_link)
+        self.assertEqual(recipe.link, original_link)
         self.assertEqual(recipe.user, self.user)
 
     def test_full_update(self):
-        """Test full update of a recipe"""
+        """Test full update of recipe."""
         recipe = create_recipe(
             user=self.user,
-            title='sample recipe title',
-            link='https://example.com/recipe.pdf',
-            description='sample recipe discription',
+            title='Sample recipe title',
+            link='https://exmaple.com/recipe.pdf',
+            description='Sample recipe description.',
         )
 
         payload = {
@@ -187,7 +188,7 @@ class PrivateRecipeApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(Recipe.objects.filter(id=recipe.id).exists())
 
-    def test_delete_other_users_recipe_error(self):
+    def test_recipe_other_users_recipe_error(self):
         """Test trying to delete another users recipe gives error"""
         new_user = create_user(email='user2@example.com', password='test123')
         recipe = create_recipe(user=new_user)
@@ -243,3 +244,43 @@ class PrivateRecipeApiTests(TestCase):
                 user=self.user,
             ).exists()
             self.assertTrue(exists)
+
+    def test_create_tag_on_update(self):
+        """Test creating tag when updating a recipe"""
+        recipe = create_recipe(user=self.user)
+
+        payload = {'tags':[{'name': 'Lunch'}]}
+        url = detail_url(recipe.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_tag = Tag.objects.get(user=self.user, name='lunch')
+        self.assertIn(new_tag, recipe.tags.all())
+
+    def test_update_recipe_assign_tag(self):
+        """test assining an existing tag when updating a recipe"""
+        tag_breakfast = Tag.objects.create(user=self.user, name='Breakfast')
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(tag_breakfast)
+
+        tag_lunch = Tag.objects.create(user=self.user, name='Lunch')
+        payload = {'tags':[{'name': 'Lunch'}]}
+        url = detail_url(recipe.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tag_lunch, recipe.tags.all())
+        self.assertNotIn(tag_breakfast, recipe.tag.all())
+
+    def test_clear_recipe_tags(self):
+        """Test clearing a recipes tags."""
+        tag = Tag.objects.create(user=self.user, name='Dessert')
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(tag)
+
+        payload ={'tags':[]}
+        url = detail_url(recipe.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.tags.count(), 0)
